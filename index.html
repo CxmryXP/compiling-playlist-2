@@ -536,12 +536,7 @@ async function updateMixPlaylist()
 
     const videoIds = player.getPlaylist();
 
-    if (!videoIds || videoIds.length === 0) 
-    {
-        console.log('No Mix video IDs returned by YouTube.');
-
-        return;
-    }
+    if (!videoIds || videoIds.length === 0) return;
 
     try 
     {
@@ -551,16 +546,7 @@ async function updateMixPlaylist()
 
         const data = await response.json();
 
-        console.log('Mix API response:', data);
-
         if (!data.items) return;
-
-        if (!data.items || data.items.length === 0) 
-        {
-            console.error('No video information returned.');
-
-            return;
-        }
 
         const videoData = new Map(
             data.items.map(item => [item.id, item.snippet])
@@ -572,7 +558,7 @@ async function updateMixPlaylist()
 
             return {
                 snippet: {
-                    title: snippet ? snippet.title : 'Unavailable video',
+                    title: snippet?.title || 'Unavailable video',
                     resourceId: {
                         videoId: videoId
                     },
@@ -590,12 +576,7 @@ async function updateMixPlaylist()
         updatePlaylistUI();
 
         updatePlaylistInfo();
-
-        currentVideoTitle.textContent = playlistItems[currentVideoIndex]?.snippet.title || 'YouTube Mix';
-
-        currentVideoChannel.textContent = playlistItems[currentVideoIndex]?.snippet.videoOwnerChannelTitle || 'YouTube Generated Mix';
     } 
-
     catch (error) 
     {
         console.error('Error retrieving Mix song information:', error);
