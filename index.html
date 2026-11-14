@@ -450,22 +450,8 @@ function onPlayerStateChange(event)
 
         }, 1000);
     }
-
-    if (event.data === YT.PlayerState.ENDED) 
-    {
-        if (isLooped) 
-        {
-            player.playVideo();
-        } 
-        
-        else 
-        {
-            playNextVideo();
-        }
-
-    } 
     
-    else if (event.data === YT.PlayerState.PLAYING) 
+    if (event.data === YT.PlayerState.PLAYING) 
     {
         if (!isYouTubeMix && playlistItems.length > 0) 
         {
@@ -578,10 +564,14 @@ function loadYouTubeMix(playlistId)
         showLoading();
 
         player.loadPlaylist({
-            list: playlistId,
-            listType: 'playlist',
-            index: 0
+        list: playlistId,
+        listType: 'playlist',
+        index: 0
         });
+
+        player.setLoop(isLooped);
+
+        player.setShuffle(false);
 
         currentVideoTitle.textContent = 'YouTube Mix';
 
@@ -823,7 +813,11 @@ function reloadSavedPlaylistQueue(index)
 
     currentVideoIndex = index;
 
+    player.setShuffle(false);
+
     player.loadPlaylist(videoIds, index);
+
+    player.setLoop(isLooped);
 
     updatePlaylistUI();
 
@@ -910,51 +904,76 @@ function playPrevVideo()
 
 function shufflePlaylist() 
 {
-    const currentVideoId = playlistItems[currentVideoIndex]?.snippet.resourceId.videoId;
+    if (playlistItems.length === 0) return;
+
+    isShuffled = !isShuffled;
+
+    if (isYouTubeMix) 
+    {
+        player.setShuffle(isShuffled);
+
+        shuffleBtn.innerHTML = isShuffled
+            ? '<i class="fas fa-random text-blue-600"></i>'
+            : '<i class="fas fa-random text-gray-600"></i>';
+
+        setTimeout(() => 
+        {
+            updateMixPlaylist();
+
+        }, 1000);
+
+        return;
+    }
 
     if (isShuffled) 
     {
-        playlistItems = [...originalPlaylistOrder];
+        const currentVideo = playlistItems[currentVideoIndex];
 
-        isShuffled = false;
+        const remainingVideos = playlistItems.filter(item =>
+            item.snippet.resourceId.videoId !== currentVideo.snippet.resourceId.videoId
+        );
 
-        shuffleBtn.innerHTML = '<i class="fas fa-random text-gray-600"></i>';
+        for (let i = remainingVideos.length - 1; i > 0; i--) 
+        {
+            const j = Math.floor(Math.random() * (i + 1));
+
+            [remainingVideos[i], remainingVideos[j]] = [remainingVideos[j], remainingVideos[i]];
+        }
+
+        playlistItems = [currentVideo, ...remainingVideos];
+
+        currentVideoIndex = 0;
+
+        shuffleBtn.innerHTML = '<i class="fas fa-random text-blue-600"></i>';
     } 
 
     else 
     {
-        const shuffled = [...playlistItems];
+        const currentVideoId = playlistItems[currentVideoIndex].snippet.resourceId.videoId;
 
-        for (let i = shuffled.length - 1; i > 0; i--) 
-        {
-            const j = Math.floor(Math.random() * (i + 1));
+        playlistItems = [...originalPlaylistOrder];
 
-            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-        }
+        currentVideoIndex = playlistItems.findIndex(item =>
+            item.snippet.resourceId.videoId === currentVideoId
+        );
 
-        playlistItems = shuffled;
-
-        isShuffled = true;
-
-        shuffleBtn.innerHTML = '<i class="fas fa-random text-blue-600"></i>';
+        shuffleBtn.innerHTML = '<i class="fas fa-random text-gray-600"></i>';
     }
 
-    const newIndex = playlistItems.findIndex(item => 
-        item.snippet.resourceId.videoId === currentVideoId
-    );
-
-    reloadSavedPlaylistQueue(newIndex >= 0 ? newIndex : 0);
+    reloadSavedPlaylistQueue(currentVideoIndex);
 }
 
 function toggleLoop() 
 {
     isLooped = !isLooped;
 
+    player.setLoop(isLooped);
+
     if (isLooped) 
     {
         loopBtn.innerHTML = '<i class="fas fa-redo text-blue-600"></i>';
     } 
-    
+
     else 
     {
         loopBtn.innerHTML = '<i class="fas fa-redo text-gray-600"></i>';
