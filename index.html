@@ -281,6 +281,8 @@ let originalPlaylistOrder = [];
 
 let playlistId = '';
 
+let isYouTubeMix = false;
+
 const playlistUrlInput = document.getElementById('playlistUrl');
 
 const loadPlaylistBtn = document.getElementById('loadPlaylist');
@@ -386,7 +388,17 @@ loadPlaylistBtn.addEventListener('click', () =>
         return;
     }
 
-    fetchPlaylist(playlistId);
+    isYouTubeMix = playlistId.startsWith('RD');
+
+    if (isYouTubeMix) 
+    {
+        loadYouTubeMix(playlistId);
+    } 
+
+    else 
+    {
+        fetchPlaylist(playlistId);
+    }
 });
 
 function extractPlaylistId(url) 
@@ -396,6 +408,55 @@ function extractPlaylistId(url)
     const match = url.match(regExp);
 
     return match && match[2] ? match[2] : null;
+}
+
+function loadYouTubeMix(playlistId) 
+{
+    try 
+    {
+        if (!player || !player.loadPlaylist) 
+        {
+            showError('YouTube player is not ready.');
+
+            return;
+        }
+
+        playlistItems = [];
+
+        originalPlaylistOrder = [];
+
+        currentVideoIndex = 0;
+
+        playlistContainer.innerHTML = `
+            <div class="p-4 text-center text-gray-500">
+                YouTube Mix loaded. Playlist controls are managed by YouTube.
+            </div>
+        `;
+
+        totalSongs.textContent = 'Mix';
+
+        currentSong.textContent = 'YouTube Mix';
+
+        currentVideoTitle.textContent = 'YouTube Mix';
+
+        currentVideoChannel.textContent = 'YouTube Generated Mix';
+
+        playerStatus.textContent = 'Loading...';
+
+        player.loadPlaylist({
+            list: playlistId,
+            listType: 'playlist',
+            index: 0
+        });
+
+    } 
+
+    catch (error) 
+    {
+        console.error('Error loading YouTube Mix:', error);
+
+        showError('Unable to load this YouTube Mix.');
+    }
 }
 
 async function fetchPlaylist(playlistId) 
