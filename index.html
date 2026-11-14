@@ -550,26 +550,32 @@ async function updateMixPlaylist()
 
     try 
     {
-        const response = await fetch(
-            `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoIds.join(',')}&key=${API_KEY}`
-        );
+        const videoData = new Map();
 
-        const data = await response.json();
-
-        console.log('Mix API response:', data);
-
-        if (!response.ok || !data.items) 
+        for (let i = 0; i < videoIds.length; i += 50) 
         {
-            console.error('Mix API error:', data.error);
+            const batch = videoIds.slice(i, i + 50);
 
-            showError('Google API request failed. Check the browser Console.');
+            const response = await fetch(
+                `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${batch.join(',')}&key=${API_KEY}`
+            );
 
-            return;
+            const data = await response.json();
+
+            if (!response.ok || !data.items) 
+            {
+                console.error('Mix API error:', JSON.stringify(data.error, null, 2));
+
+                showError('Google API request failed. Check the browser Console.');
+
+                return;
+            }
+
+            data.items.forEach(item => 
+            {
+                videoData.set(item.id, item.snippet);
+            });
         }
-
-        const videoData = new Map(
-            data.items.map(item => [item.id, item.snippet])
-        );
 
         playlistItems = videoIds.map(videoId => 
         {
@@ -593,10 +599,8 @@ async function updateMixPlaylist()
         currentVideoIndex = Math.max(0, player.getPlaylistIndex());
 
         updatePlaylistUI();
-
         updatePlaylistInfo();
     } 
-
     catch (error) 
     {
         console.error('Error retrieving Mix information:', error);
