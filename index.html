@@ -645,6 +645,14 @@ async function updateMixPlaylist()
         await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
+    console.log('Device:', navigator.userAgent);
+
+    console.log('Requested Mix ID:', playlistId);
+
+    console.log('Returned video count:', videoIds.length);
+
+    console.log('Returned video IDs:', videoIds);
+
     if (videoIds.length === 0) 
     {
         console.error('YouTube did not return any Mix video IDs.');
