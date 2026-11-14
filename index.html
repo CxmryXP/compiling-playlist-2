@@ -467,6 +467,24 @@ function onPlayerStateChange(event)
     
     else if (event.data === YT.PlayerState.PLAYING) 
     {
+        if (!isYouTubeMix && playlistItems.length > 0) 
+        {
+            const index = player.getPlaylistIndex();
+
+            if (index >= 0 && index < playlistItems.length) 
+            {
+                currentVideoIndex = index;
+
+                currentVideoTitle.textContent = playlistItems[index].snippet.title;
+
+                currentVideoChannel.textContent = playlistItems[index].snippet.videoOwnerChannelTitle || 'Unknown';
+
+                updatePlaylistUI();
+
+                updatePlaylistInfo();
+            }
+        }
+
         playerStatus.textContent = 'Playing';
 
         playPauseBtn.innerHTML = '<i class="fas fa-pause text-xl"></i>';
@@ -492,7 +510,7 @@ function onPlayerStateChange(event)
         if ('mediaSession' in navigator) 
         {
             navigator.mediaSession.playbackState = 'paused';
-            
+
             updateMediaSessionPosition();
         }
     }
@@ -711,7 +729,7 @@ async function fetchPlaylist(playlistId)
         {
             currentVideoIndex = 0;
 
-            loadVideo(currentVideoIndex);
+            reloadSavedPlaylistQueue(0);
         }
 
     } 
@@ -795,29 +813,52 @@ function updatePlaylistInfo()
     currentSong.textContent = playlistItems[currentVideoIndex]?.snippet.title || '-';
 }
 
+function reloadSavedPlaylistQueue(index) 
+{
+    if (isYouTubeMix || !player || playlistItems.length === 0) return;
+
+    const videoIds = playlistItems.map(item => 
+        item.snippet.resourceId.videoId
+    );
+
+    currentVideoIndex = index;
+
+    player.loadPlaylist(videoIds, index);
+
+    updatePlaylistUI();
+
+    updatePlaylistInfo();
+
+    currentVideoTitle.textContent = playlistItems[index].snippet.title;
+
+    currentVideoChannel.textContent = playlistItems[index].snippet.videoOwnerChannelTitle || 'Unknown';
+
+    updateMediaSessionMetadata();
+}
+
 function loadVideo(index) 
 {
     if (index < 0 || index >= playlistItems.length) return;
 
     currentVideoIndex = index;
 
-    const videoId = playlistItems[index].snippet.resourceId.videoId;
+    const video = playlistItems[index].snippet;
 
-    currentVideoTitle.textContent = playlistItems[index].snippet.title;
+    currentVideoTitle.textContent = video.title;
 
-    currentVideoChannel.textContent = playlistItems[index].snippet.videoOwnerChannelTitle || 'Unknown';
+    currentVideoChannel.textContent = video.videoOwnerChannelTitle || 'Unknown';
 
-    currentSong.textContent = playlistItems[index].snippet.title;
+    currentSong.textContent = video.title;
 
     playerStatus.textContent = 'Loading...';
 
     updatePlaylistUI();
 
+    updatePlaylistInfo();
+
     updateMediaSessionMetadata();
 
-    setupMediaSession();
-
-    player.loadVideoById(videoId);
+    player.playVideoAt(index);
 }
 
 function playVideoFromIndex(index) 
@@ -836,17 +877,15 @@ function playNextVideo()
         return;
     }
 
-    if (currentVideoIndex < playlistItems.length - 1) 
+    if (currentVideoIndex >= playlistItems.length - 1) 
     {
-        loadVideo(currentVideoIndex + 1);
+        player.playVideoAt(0);
     } 
 
     else 
     {
-        loadVideo(0);
+        player.nextVideo();
     }
-
-    player.playVideo();
 }
 
 function playPrevVideo() 
@@ -858,21 +897,21 @@ function playPrevVideo()
         return;
     }
 
-    if (currentVideoIndex > 0) 
+    if (currentVideoIndex <= 0) 
     {
-        loadVideo(currentVideoIndex - 1);
+        player.playVideoAt(playlistItems.length - 1);
     } 
 
     else 
     {
-        loadVideo(playlistItems.length - 1);
+        player.previousVideo();
     }
-
-    player.playVideo();
 }
 
 function shufflePlaylist() 
 {
+    const currentVideoId = playlistItems[currentVideoIndex]?.snippet.resourceId.videoId;
+
     if (isShuffled) 
     {
         playlistItems = [...originalPlaylistOrder];
@@ -881,7 +920,7 @@ function shufflePlaylist()
 
         shuffleBtn.innerHTML = '<i class="fas fa-random text-gray-600"></i>';
     } 
-    
+
     else 
     {
         const shuffled = [...playlistItems];
@@ -898,15 +937,13 @@ function shufflePlaylist()
         isShuffled = true;
 
         shuffleBtn.innerHTML = '<i class="fas fa-random text-blue-600"></i>';
-        
-        const currentVideoId = originalPlaylistOrder[currentVideoIndex].snippet.resourceId.videoId;
-
-        const newIndex = playlistItems.findIndex(item => item.snippet.resourceId.videoId === currentVideoId);
-
-        currentVideoIndex = newIndex;
     }
-    
-    updatePlaylistUI();
+
+    const newIndex = playlistItems.findIndex(item => 
+        item.snippet.resourceId.videoId === currentVideoId
+    );
+
+    reloadSavedPlaylistQueue(newIndex >= 0 ? newIndex : 0);
 }
 
 function toggleLoop() 
@@ -926,16 +963,30 @@ function toggleLoop()
 
 function sortByTitle() 
 {
+    const currentVideoId = playlistItems[currentVideoIndex]?.snippet.resourceId.videoId;
+
     playlistItems.sort((a, b) => a.snippet.title.localeCompare(b.snippet.title));
 
-    updatePlaylistUI();
+    const newIndex = playlistItems.findIndex(item => 
+        item.snippet.resourceId.videoId === currentVideoId
+    );
+
+    reloadSavedPlaylistQueue(newIndex >= 0 ? newIndex : 0);
 }
 
 function sortByDate() 
 {
-    playlistItems.sort((a, b) => new Date(b.snippet.publishedAt) - new Date(a.snippet.publishedAt));
+    const currentVideoId = playlistItems[currentVideoIndex]?.snippet.resourceId.videoId;
 
-    updatePlaylistUI();
+    playlistItems.sort((a, b) => 
+        new Date(b.snippet.publishedAt) - new Date(a.snippet.publishedAt)
+    );
+
+    const newIndex = playlistItems.findIndex(item => 
+        item.snippet.resourceId.videoId === currentVideoId
+    );
+
+    reloadSavedPlaylistQueue(newIndex >= 0 ? newIndex : 0);
 }
 
 function showLoading() 
