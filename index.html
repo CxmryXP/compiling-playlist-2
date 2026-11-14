@@ -446,9 +446,16 @@ function onPlayerStateChange(event)
     {
         if (isLooped) 
         {
-            player.seekTo(0, true);
+            const index = currentVideoIndex;
 
-            player.playVideo();
+            setTimeout(() => 
+            {
+                if (isLooped && index >= 0) 
+                {
+                    player.playVideoAt(index);
+                }
+
+            }, 300);
         }
 
         return;
