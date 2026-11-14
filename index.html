@@ -446,18 +446,9 @@ function onPlayerStateChange(event)
     {
         if (isLooped) 
         {
-            const index = player.getPlaylistIndex();
+            player.seekTo(0, true);
 
-            if (index >= 0) 
-            {
-                player.playVideoAt(index);
-            } 
-            else 
-            {
-                player.seekTo(0, true);
-
-                player.playVideo();
-            }
+            player.playVideo();
         }
 
         return;
