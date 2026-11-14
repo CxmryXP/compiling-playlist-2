@@ -442,33 +442,55 @@ function updateMediaSessionPosition()
 
 function onPlayerStateChange(event) 
 {
-    if (isYouTubeMix && event.data === YT.PlayerState.PLAYING) 
+    if (event.data === YT.PlayerState.ENDED) 
     {
-        setTimeout(() => 
-        {
-            updateMixPlaylist();
-
-        }, 1000);
-    }
-    
-    if (event.data === YT.PlayerState.PLAYING) 
-    {
-        if (!isYouTubeMix && playlistItems.length > 0) 
+        if (isLooped) 
         {
             const index = player.getPlaylistIndex();
 
-            if (index >= 0 && index < playlistItems.length) 
+            if (index >= 0) 
             {
-                currentVideoIndex = index;
+                player.playVideoAt(index);
+            } 
+            else 
+            {
+                player.seekTo(0, true);
 
-                currentVideoTitle.textContent = playlistItems[index].snippet.title;
-
-                currentVideoChannel.textContent = playlistItems[index].snippet.videoOwnerChannelTitle || 'Unknown';
-
-                updatePlaylistUI();
-
-                updatePlaylistInfo();
+                player.playVideo();
             }
+        }
+
+        return;
+    }
+
+    if (event.data === YT.PlayerState.PLAYING) 
+    {
+        if (isYouTubeMix) 
+        {
+            setTimeout(() => 
+            {
+                updateMixPlaylist();
+
+            }, 1000);
+        }
+
+        const videoId = player.getVideoData().video_id;
+
+        const index = playlistItems.findIndex(item =>
+            item.snippet.resourceId.videoId === videoId
+        );
+
+        if (index >= 0) 
+        {
+            currentVideoIndex = index;
+
+            currentVideoTitle.textContent = playlistItems[index].snippet.title;
+
+            currentVideoChannel.textContent = playlistItems[index].snippet.videoOwnerChannelTitle || 'Unknown';
+
+            updatePlaylistUI();
+
+            updatePlaylistInfo();
         }
 
         playerStatus.textContent = 'Playing';
@@ -486,7 +508,7 @@ function onPlayerStateChange(event)
             setupMediaSession();
         }
     }
-    
+
     else if (event.data === YT.PlayerState.PAUSED) 
     {
         playerStatus.textContent = 'Paused';
@@ -568,8 +590,6 @@ function loadYouTubeMix(playlistId)
         listType: 'playlist',
         index: 0
         });
-
-        player.setLoop(isLooped);
 
         player.setShuffle(false);
 
@@ -659,9 +679,21 @@ async function updateMixPlaylist()
             };
         });
 
-        originalPlaylistOrder = [...playlistItems];
+        if (!isShuffled) 
+        {
+            originalPlaylistOrder = [...playlistItems];
+        }
 
-        currentVideoIndex = Math.max(0, player.getPlaylistIndex());
+        const currentVideoId = player.getVideoData().video_id;
+
+        currentVideoIndex = playlistItems.findIndex(item =>
+            item.snippet.resourceId.videoId === currentVideoId
+        );
+
+        if (currentVideoIndex < 0) 
+        {
+            currentVideoIndex = Math.max(0, player.getPlaylistIndex());
+        }
 
         updatePlaylistUI();
         updatePlaylistInfo();
@@ -817,7 +849,7 @@ function reloadSavedPlaylistQueue(index)
 
     player.loadPlaylist(videoIds, index);
 
-    player.setLoop(isLooped);
+    player.setLoop(false);
 
     updatePlaylistUI();
 
@@ -904,33 +936,20 @@ function playPrevVideo()
 
 function shufflePlaylist() 
 {
-    if (playlistItems.length === 0) return;
+    if (!player || playlistItems.length === 0) return;
 
-    isShuffled = !isShuffled;
+    const currentVideoId = player.getVideoData().video_id;
 
-    if (isYouTubeMix) 
+    if (!isShuffled) 
     {
-        player.setShuffle(isShuffled);
+        const currentVideo = playlistItems.find(item =>
+            item.snippet.resourceId.videoId === currentVideoId
+        );
 
-        shuffleBtn.innerHTML = isShuffled
-            ? '<i class="fas fa-random text-blue-600"></i>'
-            : '<i class="fas fa-random text-gray-600"></i>';
-
-        setTimeout(() => 
-        {
-            updateMixPlaylist();
-
-        }, 1000);
-
-        return;
-    }
-
-    if (isShuffled) 
-    {
-        const currentVideo = playlistItems[currentVideoIndex];
+        if (!currentVideo) return;
 
         const remainingVideos = playlistItems.filter(item =>
-            item.snippet.resourceId.videoId !== currentVideo.snippet.resourceId.videoId
+            item.snippet.resourceId.videoId !== currentVideoId
         );
 
         for (let i = remainingVideos.length - 1; i > 0; i--) 
@@ -944,30 +963,50 @@ function shufflePlaylist()
 
         currentVideoIndex = 0;
 
-        shuffleBtn.innerHTML = '<i class="fas fa-random text-blue-600"></i>';
-    } 
+        isShuffled = true;
+    }
 
     else 
     {
-        const currentVideoId = playlistItems[currentVideoIndex].snippet.resourceId.videoId;
-
         playlistItems = [...originalPlaylistOrder];
 
         currentVideoIndex = playlistItems.findIndex(item =>
             item.snippet.resourceId.videoId === currentVideoId
         );
 
-        shuffleBtn.innerHTML = '<i class="fas fa-random text-gray-600"></i>';
+        if (currentVideoIndex < 0) currentVideoIndex = 0;
+
+        isShuffled = false;
     }
 
-    reloadSavedPlaylistQueue(currentVideoIndex);
+    const videoIds = playlistItems.map(item =>
+        item.snippet.resourceId.videoId
+    );
+
+    player.setShuffle(false);
+
+    player.loadPlaylist(videoIds, currentVideoIndex);
+
+    player.setLoop(false);
+
+    shuffleBtn.innerHTML = isShuffled
+        ? '<i class="fas fa-random text-blue-600"></i>'
+        : '<i class="fas fa-random text-gray-600"></i>';
+
+    updatePlaylistUI();
+
+    updatePlaylistInfo();
+
+    currentVideoTitle.textContent = playlistItems[currentVideoIndex].snippet.title;
+
+    currentVideoChannel.textContent = playlistItems[currentVideoIndex].snippet.videoOwnerChannelTitle || 'Unknown';
+
+    updateMediaSessionMetadata();
 }
 
 function toggleLoop() 
 {
     isLooped = !isLooped;
-
-    player.setLoop(isLooped);
 
     if (isLooped) 
     {
