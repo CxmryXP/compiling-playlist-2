@@ -553,14 +553,7 @@ async function updateMixPlaylist()
 
         console.log('Mix API response:', data);
 
-        if (!response.ok) 
-        {
-            console.error('YouTube API error:', data.error);
-
-            showError('Unable to retrieve Mix song information. Check the API key.');
-
-            return;
-        }
+        if (!data.items) return;
 
         if (!data.items || data.items.length === 0) 
         {
