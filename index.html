@@ -446,16 +446,17 @@ function onPlayerStateChange(event)
     {
         if (isLooped) 
         {
-            const index = currentVideoIndex;
+            const videoId = player.getVideoData().video_id;
 
-            setTimeout(() => 
+            console.log('Looping enabled. Restarting:', videoId);
+
+            if (videoId) 
             {
-                if (isLooped && index >= 0) 
-                {
-                    player.playVideoAt(index);
-                }
-
-            }, 300);
+                player.loadVideoById({
+                    videoId: videoId,
+                    startSeconds: 0
+                });
+            }
         }
 
         return;
