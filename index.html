@@ -301,6 +301,10 @@ let playlistId = '';
 
 let isYouTubeMix = false;
 
+let mixLoadVersion = 0;
+
+let mixMetadataVersion = -1;
+
 const playlistUrlInput = document.getElementById('playlistUrl');
 
 const loadPlaylistBtn = document.getElementById('loadPlaylist');
@@ -486,13 +490,9 @@ function onPlayerStateChange(event)
 
     if (event.data === YT.PlayerState.PLAYING) 
     {
-        if (isYouTubeMix) 
+        if (isYouTubeMix && mixMetadataVersion !== mixLoadVersion) 
         {
-            setTimeout(() => 
-            {
-                updateMixPlaylist();
-
-            }, 1000);
+            updateMixPlaylist(mixLoadVersion);
         }
 
         const videoId = player.getVideoData().video_id;
@@ -598,27 +598,35 @@ function loadYouTubeMix(playlistId)
             return;
         }
 
+        mixLoadVersion++;
+
+        mixMetadataVersion = -1;
+
         playlistItems = [];
 
         originalPlaylistOrder = [];
 
         currentVideoIndex = 0;
 
+        isShuffled = false;
+
         showLoading();
-
-        player.loadPlaylist({
-        list: playlistId,
-        listType: 'playlist',
-        index: 0
-        });
-
-        player.setShuffle(false);
 
         currentVideoTitle.textContent = 'YouTube Mix';
 
         currentVideoChannel.textContent = 'YouTube Generated Mix';
 
         playerStatus.textContent = 'Loading...';
+
+        player.stopVideo();
+
+        player.setShuffle(false);
+
+        player.loadPlaylist({
+            list: playlistId,
+            listType: 'playlist',
+            index: 0
+        });
 
     } 
 
@@ -630,25 +638,53 @@ function loadYouTubeMix(playlistId)
     }
 }
 
-async function updateMixPlaylist() 
+async function updateMixPlaylist(loadVersion) 
 {
     if (!isYouTubeMix || !player) return;
 
+    if (loadVersion !== mixLoadVersion) return;
+
+    if (mixMetadataVersion === loadVersion) return;
+
     let videoIds = [];
 
-    for (let i = 0; i < 10; i++) 
+    let currentVideoId = '';
+
+    for (let i = 0; i < 15; i++) 
     {
-        videoIds = player.getPlaylist() || [];
+        if (loadVersion !== mixLoadVersion || !isYouTubeMix) return;
 
-        console.log('Current video:', player.getVideoData().video_id);
+        const firstPlaylist = player.getPlaylist() || [];
 
-        console.log('Current playlist index:', player.getPlaylistIndex());
+        const firstVideoId = player.getVideoData()?.video_id;
 
-        console.log('First 10 videos:', videoIds.slice(0, 10));
+        await new Promise(resolve => setTimeout(resolve, 700));
 
-        if (videoIds.length > 0) break;
+        if (loadVersion !== mixLoadVersion || !isYouTubeMix) return;
 
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        const secondPlaylist = player.getPlaylist() || [];
+
+        const secondVideoId = player.getVideoData()?.video_id;
+
+        const playlistsMatch = 
+            JSON.stringify(firstPlaylist) === JSON.stringify(secondPlaylist);
+
+        const currentVideoMatches = 
+            secondPlaylist.includes(secondVideoId);
+
+        if (
+            firstPlaylist.length > 0 &&
+            playlistsMatch &&
+            currentVideoMatches &&
+            firstVideoId === secondVideoId
+        ) 
+        {
+            videoIds = secondPlaylist;
+
+            currentVideoId = secondVideoId;
+
+            break;
+        }
     }
 
     console.log('Device:', navigator.userAgent);
@@ -657,13 +693,13 @@ async function updateMixPlaylist()
 
     console.log('Returned video count:', videoIds.length);
 
-    console.log('MIX_IDS:', JSON.stringify(videoIds));
+    console.log('Returned video IDs:', videoIds);
 
     if (videoIds.length === 0) 
     {
-        console.error('YouTube did not return any Mix video IDs.');
+        console.error('YouTube Mix did not finish loading correctly.');
 
-        showError('YouTube did not provide the Mix videos. Please try again.');
+        showError('YouTube Mix did not finish loading. Please try again.');
 
         return;
     }
@@ -674,6 +710,8 @@ async function updateMixPlaylist()
 
         for (let i = 0; i < videoIds.length; i += 50) 
         {
+            if (loadVersion !== mixLoadVersion || !isYouTubeMix) return;
+
             const batch = videoIds.slice(i, i + 50);
 
             const response = await fetch(
@@ -697,6 +735,8 @@ async function updateMixPlaylist()
             });
         }
 
+        if (loadVersion !== mixLoadVersion || !isYouTubeMix) return;
+
         playlistItems = videoIds.map(videoId => 
         {
             const snippet = videoData.get(videoId);
@@ -704,22 +744,21 @@ async function updateMixPlaylist()
             return {
                 snippet: {
                     title: snippet?.title || 'Unavailable video',
+
                     resourceId: {
                         videoId: videoId
                     },
+
                     thumbnails: snippet?.thumbnails || {},
+
                     videoOwnerChannelTitle: snippet?.channelTitle || 'Unknown',
+
                     publishedAt: snippet?.publishedAt || ''
                 }
             };
         });
 
-        if (!isShuffled) 
-        {
-            originalPlaylistOrder = [...playlistItems];
-        }
-
-        const currentVideoId = player.getVideoData().video_id;
+        originalPlaylistOrder = [...playlistItems];
 
         currentVideoIndex = playlistItems.findIndex(item =>
             item.snippet.resourceId.videoId === currentVideoId
@@ -730,9 +769,15 @@ async function updateMixPlaylist()
             currentVideoIndex = Math.max(0, player.getPlaylistIndex());
         }
 
+        mixMetadataVersion = loadVersion;
+
         updatePlaylistUI();
+
         updatePlaylistInfo();
+
+        console.log('Mix successfully loaded:', playlistItems.length, 'videos');
     } 
+
     catch (error) 
     {
         console.error('Error retrieving Mix information:', error);
