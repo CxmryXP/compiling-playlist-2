@@ -528,9 +528,25 @@ async function updateMixPlaylist()
 {
     if (!isYouTubeMix || !player) return;
 
-    const videoIds = player.getPlaylist();
+    let videoIds = [];
 
-    if (!videoIds || videoIds.length === 0) return;
+    for (let i = 0; i < 10; i++) 
+    {
+        videoIds = player.getPlaylist() || [];
+
+        if (videoIds.length > 0) break;
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    if (videoIds.length === 0) 
+    {
+        console.error('YouTube did not return any Mix video IDs.');
+
+        showError('YouTube did not provide the Mix videos. Please try again.');
+
+        return;
+    }
 
     try 
     {
@@ -540,7 +556,16 @@ async function updateMixPlaylist()
 
         const data = await response.json();
 
-        if (!data.items) return;
+        console.log('Mix API response:', data);
+
+        if (!response.ok || !data.items) 
+        {
+            console.error('Mix API error:', data.error);
+
+            showError('Google API request failed. Check the browser Console.');
+
+            return;
+        }
 
         const videoData = new Map(
             data.items.map(item => [item.id, item.snippet])
@@ -565,15 +590,18 @@ async function updateMixPlaylist()
 
         originalPlaylistOrder = [...playlistItems];
 
-        currentVideoIndex = player.getPlaylistIndex();
+        currentVideoIndex = Math.max(0, player.getPlaylistIndex());
 
         updatePlaylistUI();
 
         updatePlaylistInfo();
     } 
+
     catch (error) 
     {
-        console.error('Error retrieving Mix song information:', error);
+        console.error('Error retrieving Mix information:', error);
+
+        showError('Could not retrieve Mix information.');
     }
 }
 
