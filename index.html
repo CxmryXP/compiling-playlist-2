@@ -335,15 +335,73 @@ function onYouTubeIframeAPIReady()
 function onPlayerReady(event) 
 {
     console.log('Player is ready');
+
+    setupMediaSession();
+}
+
+function setupMediaSession() 
+{
+    if (!('mediaSession' in navigator)) 
+    {
+        console.log('Media Session API is not supported.');
+
+        return;
+    }
+
+    navigator.mediaSession.setActionHandler('play', () => 
+    {
+        player.playVideo();
+    });
+
+    navigator.mediaSession.setActionHandler('pause', () => 
+    {
+        player.pauseVideo();
+    });
+
+    navigator.mediaSession.setActionHandler('nexttrack', () => 
+    {
+        playNextVideo();
+    });
+
+    navigator.mediaSession.setActionHandler('previoustrack', () => 
+    {
+        playPrevVideo();
+    });
+
+    navigator.mediaSession.setActionHandler('seekbackward', (details) => 
+    {
+        const currentTime = player.getCurrentTime();
+
+        player.seekTo(currentTime - (details.seekOffset || 10), true);
+    });
+
+    navigator.mediaSession.setActionHandler('seekforward', (details) => 
+    {
+        const currentTime = player.getCurrentTime();
+
+        player.seekTo(currentTime + (details.seekOffset || 10), true);
+    });
+
+    console.log('Media Session controls enabled.');
 }
 
 function onPlayerStateChange(event) 
 {
     if (isYouTubeMix && event.data === YT.PlayerState.PLAYING) 
     {
-        setTimeout(updateMixPlaylist, 1000);
+        setTimeout(() => 
+        {
+            updateMixPlaylist();
+
+            currentVideoIndex = player.getPlaylistIndex();
+
+            updatePlaylistUI();
+
+            updatePlaylistInfo();
+
+        }, 1000);
     }
-    
+
     if (event.data === YT.PlayerState.ENDED) 
     {
         if (isLooped) 
@@ -363,13 +421,29 @@ function onPlayerStateChange(event)
         playerStatus.textContent = 'Playing';
 
         playPauseBtn.innerHTML = '<i class="fas fa-pause text-xl"></i>';
-    } 
+
+        if ('mediaSession' in navigator) 
+        {
+            navigator.mediaSession.playbackState = 'playing';
+
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: currentVideoTitle.textContent,
+                artist: currentVideoChannel.textContent,
+                album: 'YouTube Playlist Player'
+            });
+        }
+    }
     
     else if (event.data === YT.PlayerState.PAUSED) 
     {
         playerStatus.textContent = 'Paused';
 
         playPauseBtn.innerHTML = '<i class="fas fa-play text-xl"></i>';
+
+        if ('mediaSession' in navigator) 
+        {
+            navigator.mediaSession.playbackState = 'paused';
+        }
     }
 }
 
@@ -456,7 +530,7 @@ function loadYouTubeMix(playlistId)
     }
 }
 
-function updateMixPlaylist() 
+async function updateMixPlaylist() 
 {
     if (!isYouTubeMix || !player) return;
 
@@ -464,32 +538,50 @@ function updateMixPlaylist()
 
     if (!videoIds || videoIds.length === 0) return;
 
-    playlistItems = videoIds.map((videoId, index) => 
+    try 
     {
-        const title = 'Mix Song ' + (index + 1);
+        const response = await fetch(
+            `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoIds.join(',')}&key=${API_KEY}`
+        );
 
-        return {
-            snippet: {
-                title: title,
-                resourceId: {
-                    videoId: videoId
-                },
-                thumbnails: {
-                    medium: {
-                        url: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`
-                    }
-                },
-                videoOwnerChannelTitle: 'YouTube Mix',
-                publishedAt: new Date().toISOString()
-            }
-        };
-    });
+        const data = await response.json();
 
-    originalPlaylistOrder = [...playlistItems];
+        if (!data.items) return;
 
-    updatePlaylistUI();
+        const videoData = new Map(
+            data.items.map(item => [item.id, item.snippet])
+        );
 
-    updatePlaylistInfo();
+        playlistItems = videoIds.map(videoId => 
+        {
+            const snippet = videoData.get(videoId);
+
+            return {
+                snippet: {
+                    title: snippet?.title || 'Unavailable video',
+                    resourceId: {
+                        videoId: videoId
+                    },
+                    thumbnails: snippet?.thumbnails || {},
+                    videoOwnerChannelTitle: snippet?.channelTitle || 'Unknown',
+                    publishedAt: snippet?.publishedAt || ''
+                }
+            };
+        });
+
+        originalPlaylistOrder = [...playlistItems];
+
+        currentVideoIndex = player.getPlaylistIndex();
+
+        updatePlaylistUI();
+
+        updatePlaylistInfo();
+    } 
+
+    catch (error) 
+    {
+        console.error('Error retrieving Mix song information:', error);
+    }
 }
 
 async function fetchPlaylist(playlistId) 
@@ -651,11 +743,18 @@ function playVideoFromIndex(index)
 
 function playNextVideo() 
 {
+    if (isYouTubeMix) 
+    {
+        player.nextVideo();
+
+        return;
+    }
+
     if (currentVideoIndex < playlistItems.length - 1) 
     {
         loadVideo(currentVideoIndex + 1);
     } 
-    
+
     else 
     {
         loadVideo(0);
@@ -666,11 +765,18 @@ function playNextVideo()
 
 function playPrevVideo() 
 {
+    if (isYouTubeMix) 
+    {
+        player.previousVideo();
+
+        return;
+    }
+
     if (currentVideoIndex > 0) 
     {
         loadVideo(currentVideoIndex - 1);
     } 
-    
+
     else 
     {
         loadVideo(playlistItems.length - 1);
