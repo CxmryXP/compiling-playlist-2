@@ -339,6 +339,11 @@ function onPlayerReady(event)
 
 function onPlayerStateChange(event) 
 {
+    if (isYouTubeMix && event.data === YT.PlayerState.PLAYING) 
+    {
+        setTimeout(updateMixPlaylist, 1000);
+    }
+    
     if (event.data === YT.PlayerState.ENDED) 
     {
         if (isLooped) 
@@ -427,27 +432,19 @@ function loadYouTubeMix(playlistId)
 
         currentVideoIndex = 0;
 
-        playlistContainer.innerHTML = `
-            <div class="p-4 text-center text-gray-500">
-                YouTube Mix loaded. Playlist controls are managed by YouTube.
-            </div>
-        `;
-
-        totalSongs.textContent = 'Mix';
-
-        currentSong.textContent = 'YouTube Mix';
-
-        currentVideoTitle.textContent = 'YouTube Mix';
-
-        currentVideoChannel.textContent = 'YouTube Generated Mix';
-
-        playerStatus.textContent = 'Loading...';
+        showLoading();
 
         player.loadPlaylist({
             list: playlistId,
             listType: 'playlist',
             index: 0
         });
+
+        currentVideoTitle.textContent = 'YouTube Mix';
+
+        currentVideoChannel.textContent = 'YouTube Generated Mix';
+
+        playerStatus.textContent = 'Loading...';
 
     } 
 
@@ -457,6 +454,42 @@ function loadYouTubeMix(playlistId)
 
         showError('Unable to load this YouTube Mix.');
     }
+}
+
+function updateMixPlaylist() 
+{
+    if (!isYouTubeMix || !player) return;
+
+    const videoIds = player.getPlaylist();
+
+    if (!videoIds || videoIds.length === 0) return;
+
+    playlistItems = videoIds.map((videoId, index) => 
+    {
+        const title = 'Mix Song ' + (index + 1);
+
+        return {
+            snippet: {
+                title: title,
+                resourceId: {
+                    videoId: videoId
+                },
+                thumbnails: {
+                    medium: {
+                        url: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`
+                    }
+                },
+                videoOwnerChannelTitle: 'YouTube Mix',
+                publishedAt: new Date().toISOString()
+            }
+        };
+    });
+
+    originalPlaylistOrder = [...playlistItems];
+
+    updatePlaylistUI();
+
+    updatePlaylistInfo();
 }
 
 async function fetchPlaylist(playlistId) 
