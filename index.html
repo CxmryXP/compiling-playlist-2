@@ -372,17 +372,72 @@ function setupMediaSession()
     {
         const currentTime = player.getCurrentTime();
 
-        player.seekTo(currentTime - (details.seekOffset || 10), true);
+        const seekOffset = details.seekOffset || 10;
+
+        player.seekTo(Math.max(0, currentTime - seekOffset), true);
+
+        updateMediaSessionPosition();
     });
 
     navigator.mediaSession.setActionHandler('seekforward', (details) => 
     {
         const currentTime = player.getCurrentTime();
 
-        player.seekTo(currentTime + (details.seekOffset || 10), true);
+        const duration = player.getDuration();
+
+        const seekOffset = details.seekOffset || 10;
+
+        player.seekTo(Math.min(duration, currentTime + seekOffset), true);
+
+        updateMediaSessionPosition();
+    });
+
+    navigator.mediaSession.setActionHandler('seekto', (details) => 
+    {
+        if (details.seekTime !== undefined) 
+        {
+            player.seekTo(details.seekTime, true);
+
+            updateMediaSessionPosition();
+        }
     });
 
     console.log('Media Session controls enabled.');
+}
+
+function updateMediaSessionMetadata() 
+{
+    if (!('mediaSession' in navigator)) return;
+
+    navigator.mediaSession.metadata = new MediaMetadata(
+    {
+        title: currentVideoTitle.textContent,
+
+        artist: currentVideoChannel.textContent,
+
+        album: 'YouTube Playlist Player'
+    });
+}
+
+function updateMediaSessionPosition() 
+{
+    if (!('mediaSession' in navigator) || !player) return;
+
+    const duration = player.getDuration();
+
+    const position = player.getCurrentTime();
+
+    if (duration > 0 && Number.isFinite(duration) && Number.isFinite(position)) 
+    {
+        navigator.mediaSession.setPositionState(
+        {
+            duration: duration,
+
+            playbackRate: player.getPlaybackRate(),
+
+            position: Math.min(position, duration)
+        });
+    }
 }
 
 function onPlayerStateChange(event) 
@@ -420,11 +475,11 @@ function onPlayerStateChange(event)
         {
             navigator.mediaSession.playbackState = 'playing';
 
-            navigator.mediaSession.metadata = new MediaMetadata({
-                title: currentVideoTitle.textContent,
-                artist: currentVideoChannel.textContent,
-                album: 'YouTube Playlist Player'
-            });
+            updateMediaSessionMetadata();
+
+            updateMediaSessionPosition();
+
+            setupMediaSession();
         }
     }
     
@@ -437,6 +492,8 @@ function onPlayerStateChange(event)
         if ('mediaSession' in navigator) 
         {
             navigator.mediaSession.playbackState = 'paused';
+            
+            updateMediaSessionPosition();
         }
     }
 }
@@ -741,12 +798,10 @@ function updatePlaylistInfo()
 function loadVideo(index) 
 {
     if (index < 0 || index >= playlistItems.length) return;
-    
+
     currentVideoIndex = index;
 
     const videoId = playlistItems[index].snippet.resourceId.videoId;
-    
-    player.loadVideoById(videoId);
 
     currentVideoTitle.textContent = playlistItems[index].snippet.title;
 
@@ -755,8 +810,14 @@ function loadVideo(index)
     currentSong.textContent = playlistItems[index].snippet.title;
 
     playerStatus.textContent = 'Loading...';
-    
+
     updatePlaylistUI();
+
+    updateMediaSessionMetadata();
+
+    setupMediaSession();
+
+    player.loadVideoById(videoId);
 }
 
 function playVideoFromIndex(index) 
