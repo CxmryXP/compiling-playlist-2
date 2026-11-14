@@ -640,6 +640,12 @@ async function updateMixPlaylist()
     {
         videoIds = player.getPlaylist() || [];
 
+        console.log('Current video:', player.getVideoData().video_id);
+
+        console.log('Current playlist index:', player.getPlaylistIndex());
+
+        console.log('First 10 videos:', videoIds.slice(0, 10));
+
         if (videoIds.length > 0) break;
 
         await new Promise(resolve => setTimeout(resolve, 1000));
