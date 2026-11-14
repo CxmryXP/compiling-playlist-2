@@ -695,6 +695,12 @@ async function updateMixPlaylist(loadVersion)
 
     console.log('Returned video IDs:', videoIds);
 
+    alert(
+    'Video count: ' + videoIds.length +
+    '\n\nFirst 10 IDs:\n' +
+    videoIds.slice(0, 10).join('\n')
+    );
+
     if (videoIds.length === 0) 
     {
         console.error('YouTube Mix did not finish loading correctly.');
