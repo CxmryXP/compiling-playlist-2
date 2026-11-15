@@ -194,7 +194,7 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover
 
 </head>
 
-<body class="bg-gray-100 font-sans dark-mode"></body>
+<body class="bg-gray-100 font-sans dark-mode">
 
 <div class="min-h-screen flex flex-col">
 
@@ -234,9 +234,7 @@ class="w-full px-4 py-3 rounded-lg text-gray-800 dark-search-bar focus:outline-n
 
 id="loadPlaylist" 
 
-class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-1 rounded-md transition"
-
->
+class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-1 rounded-md transition">
 
 Load
 
@@ -640,23 +638,29 @@ function updateMediaSessionPosition()
 
 function onPlayerStateChange(event) 
 {
+    if (event.data === YT.PlayerState.ENDED) 
+    {
+        if (isLooped) 
+        {
+            const videoId = player.getVideoData().video_id;
+
+            console.log('Looping enabled. Restarting:', videoId);
+
+            if (videoId) 
+            {
+                player.loadVideoById({
+                    videoId: videoId,
+                    startSeconds: 0
+                });
+            }
+        }
+
+        return;
+    }
+
     if (event.data === YT.PlayerState.PLAYING) 
     {
         const videoId = player.getVideoData().video_id;
-
-        if (isLooped && previousVideoId && videoId !== previousVideoId)
-        {
-            console.log('Looping enabled. Returning to previous song.');
-
-            const previousIndex = player.getPlaylist().indexOf(previousVideoId);
-
-            if (previousIndex >= 0)
-            {
-                player.playVideoAt(previousIndex);
-
-                return;
-            }
-        }
 
         previousVideoId = videoId;
 
@@ -1258,7 +1262,7 @@ function shufflePlaylist()
 
 function toggleLoop() 
 {
-    isLooped = !isLoopedf;
+    isLooped = !isLooped;
 
     if (isLooped) 
     {
