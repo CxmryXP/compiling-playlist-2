@@ -638,6 +638,8 @@ function updateMediaSessionPosition()
 
 function onPlayerStateChange(event) 
 {
+    console.log("PLAYER STATE:", event.data);
+    
     if (event.data === YT.PlayerState.ENDED)
     {
         console.log("VIDEO ENDED");
