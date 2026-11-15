@@ -423,6 +423,8 @@ let isShuffled = false;
 
 let isLooped = false;
 
+let previousVideoId = '';
+
 let originalPlaylistOrder = [];
 
 let playlistId = '';
@@ -638,27 +640,30 @@ function updateMediaSessionPosition()
 
 function onPlayerStateChange(event) 
 {
-    if (event.data === YT.PlayerState.ENDED) 
-    {
-        if (isLooped) 
-        {
-            console.log('Looping enabled. Restarting current song.');
-
-            player.seekTo(0, true);
-
-            player.playVideo();
-        }
-
-        return;
-    }
     if (event.data === YT.PlayerState.PLAYING) 
     {
+        const videoId = player.getVideoData().video_id;
+
+        if (isLooped && previousVideoId && videoId !== previousVideoId)
+        {
+            console.log('Looping enabled. Returning to previous song.');
+
+            const previousIndex = player.getPlaylist().indexOf(previousVideoId);
+
+            if (previousIndex >= 0)
+            {
+                player.playVideoAt(previousIndex);
+
+                return;
+            }
+        }
+
+        previousVideoId = videoId;
+
         if (isYouTubeMix && mixMetadataVersion !== mixLoadVersion) 
         {
             updateMixPlaylist(mixLoadVersion);
         }
-
-        const videoId = player.getVideoData().video_id;
 
         const index = playlistItems.findIndex(item =>
             item.snippet.resourceId.videoId === videoId
@@ -762,6 +767,8 @@ function loadYouTubeMix(playlistId)
         }
 
         mixLoadVersion++;
+
+        previousVideoId = '';
 
         mixMetadataVersion = -1;
 
@@ -983,6 +990,8 @@ async function fetchPlaylist(playlistId)
         while (nextPageToken);
         
         playlistItems = allItems.filter(item => item.snippet.title !== 'Deleted video' && item.snippet.title !== 'Private video');
+
+        previousVideoId = '';
 
         originalPlaylistOrder = [...playlistItems];
         
@@ -1249,7 +1258,7 @@ function shufflePlaylist()
 
 function toggleLoop() 
 {
-    isLooped = !isLooped;
+    isLooped = !isLoopedf;
 
     if (isLooped) 
     {
