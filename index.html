@@ -421,6 +421,8 @@ let isShuffled = false;
 
 let isLooped = false;
 
+let isRestartingLoop = false;
+
 let previousVideoId = '';
 
 let originalPlaylistOrder = [];
@@ -533,6 +535,48 @@ function onPlayerReady(event)
     console.log('Player is ready');
 
     setupMediaSession();
+
+    setInterval(checkSingleSongLoop, 250);
+}
+
+function checkSingleSongLoop()
+{
+    if (!player || !isLooped)
+    {
+        isRestartingLoop = false;
+
+        return;
+    }
+
+    if (player.getPlayerState() !== YT.PlayerState.PLAYING)
+    {
+        return;
+    }
+
+    const currentTime = player.getCurrentTime();
+
+    const duration = player.getDuration();
+
+    if (isRestartingLoop)
+    {
+        if (currentTime < 3)
+        {
+            isRestartingLoop = false;
+        }
+
+        return;
+    }
+
+    if (duration > 0 && currentTime >= duration - 1.5)
+    {
+        console.log('Looping current song:', player.getVideoData().video_id);
+
+        isRestartingLoop = true;
+
+        player.seekTo(0, true);
+
+        player.playVideo();
+    }
 }
 
 function setupMediaSession() 
@@ -1257,6 +1301,8 @@ function shufflePlaylist()
 
 function toggleLoop() 
 {
+    isRestartingLoop = false;
+    
     isLooped = !isLooped;
 
     if (isLooped) 
