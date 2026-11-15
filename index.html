@@ -638,22 +638,13 @@ function updateMediaSessionPosition()
 
 function onPlayerStateChange(event) 
 {
-    if (event.data === YT.PlayerState.ENDED) 
+    if (event.data === YT.PlayerState.ENDED)
     {
-        if (isLooped) 
-        {
-            const videoId = player.getVideoData().video_id;
-
-            console.log('Looping enabled. Restarting:', videoId);
-
-            if (videoId) 
-            {
-                player.loadVideoById({
-                    videoId: videoId,
-                    startSeconds: 0
-                });
-            }
-        }
+        console.log("VIDEO ENDED");
+        console.log("Loop enabled:", isLooped);
+        console.log("Video data:", player.getVideoData());
+        console.log("Playlist:", player.getPlaylist());
+        console.log("Playlist index:", player.getPlaylistIndex());
 
         return;
     }
