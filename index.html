@@ -419,8 +419,6 @@ let playlistItems = [];
 
 let currentVideoIndex = 0;
 
-let loopVideoIndex = 0;
-
 let isShuffled = false;
 
 let isLooped = false;
@@ -644,18 +642,17 @@ function onPlayerStateChange(event)
     {
         if (isLooped) 
         {
-            console.log('Looping enabled. Replaying playlist index:', loopVideoIndex);
+            console.log('Looping enabled. Restarting current song.');
 
-            player.playVideoAt(loopVideoIndex);
+            player.seekTo(0, true);
+
+            player.playVideo();
         }
 
         return;
     }
-
     if (event.data === YT.PlayerState.PLAYING) 
     {
-        loopVideoIndex = player.getPlaylistIndex();
-        
         if (isYouTubeMix && mixMetadataVersion !== mixLoadVersion) 
         {
             updateMixPlaylist(mixLoadVersion);
