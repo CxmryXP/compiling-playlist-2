@@ -695,46 +695,6 @@ async function updateMixPlaylist(loadVersion)
 
     console.log('Returned video IDs:', videoIds);
 
-    let debugPanel = document.getElementById('mixDebugPanel');
-
-if (!debugPanel) 
-{
-    debugPanel = document.createElement('div');
-
-    debugPanel.id = 'mixDebugPanel';
-
-    debugPanel.style.cssText = `
-        position: fixed;
-        bottom: 10px;
-        left: 10px;
-        right: 10px;
-        z-index: 99999;
-        background: white;
-        color: black;
-        padding: 15px;
-        border: 2px solid blue;
-        border-radius: 10px;
-        font-size: 13px;
-        max-height: 250px;
-        overflow-y: auto;
-        white-space: pre-wrap;
-    `;
-
-    document.body.appendChild(debugPanel);
-}
-
-debugPanel.textContent =
-    'IPHONE MIX DEBUG\n\n' +
-    'Video count: ' + videoIds.length + '\n\n' +
-    'First 20 video IDs:\n' +
-    videoIds.slice(0, 20).join('\n');
-
-    alert(
-    'Video count: ' + videoIds.length +
-    '\n\nFirst 10 IDs:\n' +
-    videoIds.slice(0, 10).join('\n')
-    );
-
     if (videoIds.length === 0) 
     {
         console.error('YouTube Mix did not finish loading correctly.');
